@@ -318,9 +318,9 @@ $app->add(function ($request, $handler) {
 // MongoDB connection
 $mongoClient = new MongoClient("mongodb+srv://Maitreya:killdill12@cluster0.sk6ugig.mongodb.net/?retryWrites=true&w=majority&appName=Cluster0");
 $db = $mongoClient->selectDatabase('my_database');
-$productCollection = $db->selectCollection('products');
+$productCollection = $db->selectCollection('Ticket');
 $db1=$mongoClient->selectDatabase('User_Database');
-$userCollection = $db1->selectCollection('Users');
+$userCollection = $db1->selectCollection('TickerBookers');
 
 $app->options("/send_email",function($request,$response){
     return addCorsHeaders($response)->withStatus(200);
