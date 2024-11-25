@@ -200,40 +200,7 @@ $app->addBodyParsingMiddleware();
  
 
 
- $app->post('/api/razorpay/create-order', function (Request $request, Response $response) use ($razorpay) {
-    // Check if the user is logged in
-    if (!isset($_SESSION["user_id"])) {  // Assuming 'user_id' is stored in session after login
-        $response->getBody()->write(json_encode(['error' => 'Please log in to continue']));
-        return $response->withStatus(401)->withHeader('Content-Type', 'application/json');
-    }
-
-    // Proceed with Razorpay order creation if user is logged in
-    $data = $request->getParsedBody();
-    $amount = $data['amount'] ?? 0;
-
-    // Validate the amount
-    if ($amount <= 0) {
-        $response->getBody()->write(json_encode(['error' => 'Invalid amount']));
-        return $response->withStatus(400)->withHeader('Content-Type', 'application/json');
-    }
-
-    try {
-        // Create a Razorpay order
-        $order = $razorpay->order->create([
-            'receipt' => 'order_rcptid_11',
-            'amount' => $amount * 100,  // Amount in paise
-            'currency' => 'INR',
-            'payment_capture' => 1  // Auto-capture payment
-        ]);
-
-        // Return the order details
-        $response->getBody()->write(json_encode(['order_id' => $order['id']]));
-        return $response->withStatus(201)->withHeader('Content-Type', 'application/json');
-    } catch (Exception $e) {
-        $response->getBody()->write(json_encode(['error' => 'Error creating order: ' . $e->getMessage()]));
-        return $response->withStatus(500)->withHeader('Content-Type', 'application/json');
-    }
-});
+  
  
 
 $app->options('/api/razorpay/create-order', function (Request $request, Response $response) use ($razorpay){
@@ -321,6 +288,56 @@ $db = $mongoClient->selectDatabase('my_database');
 $productCollection = $db->selectCollection('Ticket');
 $db1=$mongoClient->selectDatabase('User_Database');
 $userCollection = $db1->selectCollection('TickerBookers');
+
+$app->post('/api/razorpay/create-order', function (Request $request, Response $response) use ($razorpay,$userCollection) {
+    $username = $request->getQueryParams()['username'] ?? null;
+
+    if (!$username) {
+        $response->getBody()->write(json_encode(['error' => 'Username is required']));
+        return addCorsHeaders($response)->withStatus(400)->withHeader('Content-Type', 'application/json');
+    }
+
+    $user = $userCollection->findOne(['name' => $username]);
+
+    if (!$user) {
+        $response->getBody()->write(json_encode(['error' => 'User not logged in or does not exist']));
+        return addCorsHeaders($response)->withStatus(403)->withHeader('Content-Type', 'application/json');
+    }
+
+ 
+     // Proceed with Razorpay order creation if user is logged in
+     $data = $request->getParsedBody();
+     $amount = $data['amount'] ?? 0;
+ 
+     // Validate the amount
+     if ($amount <= 0) {
+         $response->getBody()->write(json_encode(['error' => 'Invalid amount']));
+         return addCorsHeaders($response)->withStatus(400)->withHeader('Content-Type', 'application/json');
+     }
+ 
+     try {
+         // Create a Razorpay order
+         $order = $razorpay->order->create([
+             'receipt' => 'order_rcptid_11',
+             'amount' => $amount * 100,  // Amount in paise
+             'currency' => 'INR',
+             'payment_capture' => 1  // Auto-capture payment
+         ]);
+ 
+         // Return the order details
+         $response->getBody()->write(json_encode([
+            'order_id' => $order['id'],
+            'amount' => $order['amount'],        // Include the amount
+            'currency' => $order['currency'],   // Include the currency
+            'status' => $order['status'],       // Include the order status
+            'receipt' => $order['receipt'],     // Include the receipt
+        ]));
+         return addCorsHeaders($response)->withStatus(201)->withHeader('Content-Type', 'application/json');
+     } catch (Exception $e) {
+         $response->getBody()->write(json_encode(['error' => 'Error creating order: ' . $e->getMessage()]));
+         return addCorsHeaders($response)->withStatus(500)->withHeader('Content-Type', 'application/json');
+     }
+ });
 
 $app->options("/send_email",function($request,$response){
     return addCorsHeaders($response)->withStatus(200);
