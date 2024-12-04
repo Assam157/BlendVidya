@@ -578,30 +578,44 @@
   
  
  // Define routes
- $app->options('/api/products/{Route}/{Arrival}{Departure}', function ($request, $response, $args) {
+ $app->options('/api/products/{Route}/{Arrival}/{Departure}', function ($request, $response, $args) {
     return $response
         ->withHeader('Access-Control-Allow-Origin', '*') // Change '*' to your frontend domain in production
-        ->withHeader('Access-Control-Allow-Methods', 'OPTIONS, DELETE')
+        ->withHeader('Access-Control-Allow-Methods', 'OPTIONS, DELETE,POST')
         ->withHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization')
         ->withStatus(200);
 });
 
-$app->delete('/api/products/{Route}/{Arrival}{Departure}', function ($request, $response, $args) use ($productCollection) {
+$app->post('/api/products/{Route}/{Arrival}/{Departure}', function ($request, $response, $args) use ($productCollection) {
+    // Retrieve route parameters from the URL
     $name = $args['Route'];
     $arriv = $args['Arrival'];
-    $depart=$args['Departure'];
-
+    $depart = $args['Departure'];
+   
     try {
         // Delete product from MongoDB
-        $deleteResult = $productCollection->deleteOne(['Route' => $name, 'Arrival' => $arriv,'Depart'=>$depart]);
+        $deleteResult = $productCollection->deleteMany([
+            'Route' => $name,
+            'Arrival' => $arriv,
+            'Departure' => $depart
+        ]);
 
         if ($deleteResult->getDeletedCount() > 0) {
-            return addCorsHeaders($response)->getBody()->write(json_encode(['message' => 'Product deleted successfully']));
+            $response->getBody()->write(json_encode(['message' => 'Product deleted successfully']));
+            return addCorsHeaders($response)
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(200);
         } else {
-            return addCorsHeaders($response)->getBody()->write(json_encode(['message' => 'Product not found']));
+            $response->getBody()->write(json_encode(['message' => 'Product not found']));
+            return addCorsHeaders($response)
+                ->withHeader('Content-Type', 'application/json')
+                ->withStatus(404);
         }
     } catch (Exception $e) {
-        return addCorsHeaders($response)->getBody()->write(json_encodeson(['message' => 'Error deleting product']));
+        $response->getBody()->write(json_encode(['message' => 'Error deleting product', 'error' => $e->getMessage()]));
+        return addCorsHeaders($response)
+            ->withHeader('Content-Type', 'application/json')
+            ->withStatus(500);
     }
 });
 
